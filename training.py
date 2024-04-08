@@ -17,9 +17,7 @@ import utils
 symbol = 'AVAX'
 dataset = DataGenerator(symbol).get_dataset()
 
-n = len(dataset)
-train_dataset = dataset[0:int(n*0.97)]
-test_dataset = dataset[int(n*0.97):]
+train_dataset, test_dataset = utils.split_dataset(dataset, training_pct=0.97)
 
 X_train = train_dataset.drop(columns=['target'], axis=1)
 y_train = train_dataset['target']
