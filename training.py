@@ -12,8 +12,9 @@ from sklearn.utils.class_weight import compute_class_weight
 import xgboost as xgb
 
 from data_generator import DataGenerator
+import utils
 
-symbol = 'ETH'
+symbol = 'AVAX'
 dataset = DataGenerator(symbol).get_dataset()
 
 n = len(dataset)
@@ -43,41 +44,6 @@ classifiers = {
     "MLPClassifier": MLPClassifier()
 }
 
-
-def get_overall_score(accuracy: float, precision: float, negative_accuracy: float, positive_accuracy: float) -> float:
-    return (0.3 * accuracy) + (0.3 * precision) + (0.1 * negative_accuracy) + (0.3 * positive_accuracy)
-
-
-def evaluate_classifier(classifier, X_train, y_train, X_test, y_test, threshold: float = 0.5):
-    classifier.fit(X_train, y_train)
-    labels =  classifier.classes_
-    if labels[0] != 0:
-        raise Exception("LABELS ARE FUCKED UP")
-
-    if not isinstance(classifier, RidgeClassifier):
-      y_prob = classifier.predict_proba(X_test)
-      y_pred = [
-          1 if prediction_prob[1] > threshold else 0
-          for prediction_prob in y_prob
-      ]
-    else:
-      y_pred = classifier.predict(X_test)
-
-    cm = confusion_matrix(y_test, y_pred, labels=[0,1])
-    accuracy = accuracy_score(y_test, y_pred)
-    precision = precision_score(y_test, y_pred)
-    negative_accuracy = cm[0][0] / (cm[0][0] + cm[0][1])
-    positive_accuracy = cm[1][1] / (cm[1][0] + cm[1][1])
-    return {
-        "accuracy": accuracy,
-        "precision": precision,
-        "positive_accuracy": positive_accuracy,
-        "negative_accuracy": negative_accuracy,
-        "cm": cm,
-        "overall_score": get_overall_score(accuracy, precision, negative_accuracy, positive_accuracy)
-    }
-
-
 # Initialize lists to store results
 results = {
     'Classifier': [],
@@ -92,7 +58,7 @@ results = {
 # Iterate through classifiers
 for clf_name, clf in classifiers.items():
     # Evaluate classifier
-    metrics = evaluate_classifier(clf, X_train, y_train, X_test, y_test)
+    metrics = utils.evaluate_classifier(clf, X_train, y_train, X_test, y_test)
 
     # Store results
     results['Classifier'].append(clf_name)
