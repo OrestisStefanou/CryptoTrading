@@ -57,5 +57,9 @@ def evaluate_classifier(
         "positive_accuracy": positive_accuracy,
         "negative_accuracy": negative_accuracy,
         "cm": cm,
+        "true_negatives": cm[0][0],
+        "true_positives": cm[1][1],
+        "false_positives": cm[0][1],
+        "false_negatives": cm[1][0],
         "overall_score": get_overall_score(accuracy, precision, negative_accuracy, positive_accuracy)
     }
