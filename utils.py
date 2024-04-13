@@ -29,13 +29,16 @@ def evaluate_classifier(
     - precision
     - positive_accuracy
     - negative_accuracy
-    - cm (confusion matrix)
+    - true_negatives
+    - true_positives
+    - false_positives
+    - false_negatives
     - overall_score
     """
     classifier.fit(X_train, y_train)
     labels =  classifier.classes_
     if labels[0] != 0:
-        raise Exception("LABELS ARE FUCKED UP")
+        raise Exception("Labels order is not the expected one")
 
     if not isinstance(classifier, RidgeClassifier):
       y_prob = classifier.predict_proba(X_test)
@@ -56,7 +59,6 @@ def evaluate_classifier(
         "precision": precision,
         "positive_accuracy": positive_accuracy,
         "negative_accuracy": negative_accuracy,
-        "cm": cm,
         "true_negatives": cm[0][0],
         "true_positives": cm[1][1],
         "false_positives": cm[0][1],

@@ -110,7 +110,7 @@ class DataGenerator:
         data['BBANDS_distance_pct'] = ((data['Real_Upper_Band'] - data['Real_Lower_Band']) / data['Real_Lower_Band']) * 100
         data.drop(columns=['OBV', 'Chaikin A/D', 'Real_Upper_Band', 'Real_Lower_Band', 'close', 'volume', 'open', 'high', 'low', 'date'], axis=1, inplace=True)
         data.dropna(inplace=True)
-        return data
+        return data.astype(float)
 
 
     def _fetch_data(self) -> pd.DataFrame:

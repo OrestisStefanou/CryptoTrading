@@ -18,19 +18,6 @@ symbol = 'AVAX'
 ml_flow_client = mlflow.MlflowClient(tracking_uri="http://127.0.0.1:8080")
 mlflow.set_tracking_uri("http://127.0.0.1:8080")
 
-experiment_description = f"{symbol} Experiment"
-
-experiment_tags = {
-    "project_name": "crypto-forecasting",
-    "mlflow.note.content": experiment_description,
-}
-
-# experiment = ml_flow_client.get_experiment(f"{symbol}_Models")
-
-# if experiment is None:
-#     experiment = ml_flow_client.create_experiment(
-#         name=f"{symbol}_Models", tags=experiment_tags
-#     )
 
 mlflow.set_experiment(f"{symbol}_Models")
 
@@ -67,7 +54,6 @@ results = {
     'Precision': [],
     'Positive_Accuracy': [],
     'Negative_Accuracy': [],
-    'Confusion Matrix': [],
     'Overall Score': [],
     "RunID": []
   }
@@ -88,7 +74,6 @@ for clf_name, clf in classifiers.items():
     results['Precision'].append(metrics['precision'])
     results['Positive_Accuracy'].append(metrics['positive_accuracy'])
     results['Negative_Accuracy'].append(metrics['negative_accuracy'])
-    results['Confusion Matrix'].append(metrics['cm'])
     results['Overall Score'].append(metrics['overall_score'])
     results['RunID'].append(run.info.run_id)
 
