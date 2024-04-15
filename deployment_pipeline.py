@@ -76,6 +76,8 @@ class DeploymentPipeline:
         if positive_accuracy > 0.5 and negative_accuracy > 0.5 and overall_score > 0.6:
             logging.info(f"Registering model for symbol: {self.symbol}")
             model_uri = f"runs:/{run_id}/{self._artifact_path}"
+            # Store the performance of the metrics in the tags
+            # Set alias on the registered model so that we can fetch it later?
             mlflow.register_model(model_uri=model_uri, name=self._registered_model_name)
         else:
             logging.info(f"Model for {self.symbol} failed thresholds")

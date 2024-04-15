@@ -114,7 +114,7 @@ class DataGenerator:
 
 
     def _fetch_data(self) -> pd.DataFrame:
-        if self.symbol in ['BTC', 'ETH', 'SOL', 'ADA', 'AVAX', 'TRX', 'MATIC', 'LTC', 'UNI', 'ATOM', 'MKR', 'GRT', 'SNX', 'NEO', 'GNO', 'ALGO']:
+        if self.symbol in ['BTC', 'ETH', 'SOL', 'ADA', 'TRX', 'MATIC', 'LTC', 'UNI', 'ATOM', 'MKR', 'GRT', 'SNX', 'NEO', 'GNO', 'ALGO']:
             market = 'EUR'
         else:
             market = 'USD'
