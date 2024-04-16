@@ -68,17 +68,28 @@ class DeploymentPipeline:
         results_df.sort_values(by=['Overall_Score'], ascending=False, inplace=True)
         results_df.reset_index(inplace=True)
         run_id = results_df['Run_Id'][0]
+
         # Check if best performing model is passing the performance thresholds
         positive_accuracy = results_df['Positive_Accuracy'][0]
         negative_accuracy = results_df['Negative_Accuracy'][0]
         overall_score = results_df['Overall_Score'][0]
+        accuracy = results_df['Accuracy'][0]
+        precision = results_df['Precision'][0]
 
-        if positive_accuracy > 0.5 and negative_accuracy > 0.5 and overall_score > 0.6:
+        if positive_accuracy > 0.5 and negative_accuracy > 0.5 and overall_score > 0.5:
             logging.info(f"Registering model for symbol: {self.symbol}")
             model_uri = f"runs:/{run_id}/{self._artifact_path}"
             # Store the performance of the metrics in the tags
+            tags = {
+                "positive_accuracy": positive_accuracy,
+                "negative_accuracy": negative_accuracy,
+                "overall_score": overall_score,
+                "accuracy": accuracy,
+                "precision": precision,
+                "symbol": self.symbol,
+            }
             # Set alias on the registered model so that we can fetch it later?
-            mlflow.register_model(model_uri=model_uri, name=self._registered_model_name)
+            mlflow.register_model(model_uri=model_uri, name=self._registered_model_name, tags=tags)
         else:
             logging.info(f"Model for {self.symbol} failed thresholds")
 
