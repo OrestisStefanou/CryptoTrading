@@ -1,10 +1,13 @@
 import time
+import warnings
 
 import mlflow
 
 from data_generator import DataGenerator
 import settings
 
+# Filter out the specific warning
+warnings.filterwarnings("ignore", category=UserWarning)
 
 if __name__ == "__main__":
     mlflow_client = mlflow.MlflowClient(tracking_uri=settings.tracking_uri)
@@ -39,7 +42,7 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Error loading model {model_name}: {e}")
 
-        if count == 2:
+        if count == 5:
             time.sleep(65)  # Provider requests limitation is 30 requests per minute
             count = 0            
 
