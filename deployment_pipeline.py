@@ -17,6 +17,7 @@ import mlflow
 import utils
 from data_generator import DataGenerator
 import settings
+from neural_net import NeuralNet
 
 logging.basicConfig(level=logging.INFO)
 
@@ -57,10 +58,18 @@ class DeploymentPipeline:
 
                 mlflow.log_metrics(metrics)
                 signature = mlflow.models.infer_signature(X_test, clf.predict(X_test))
-                mlflow.sklearn.log_model(
-                    sk_model=clf, signature=signature, artifact_path=self._artifact_path
-                )
-
+                
+                if isinstance(clf, NeuralNet):
+                    mlflow.tensorflow.log_model(
+                        model=clf._model,
+                        artifact_path=self._artifact_path
+                    )
+                else:
+                    mlflow.sklearn.log_model(
+                        sk_model=clf,
+                        signature=signature,
+                        artifact_path=self._artifact_path
+                    )
             self._store_evaluation_results(classifier_name=clf_name, metrics=metrics, run_id=run.info.run_id)
 
 
@@ -89,7 +98,6 @@ class DeploymentPipeline:
                 "precision": precision,
                 "symbol": self.symbol,
             }
-            # Set alias on the registered model so that we can fetch it later?
             mlflow.register_model(model_uri=model_uri, name=self._registered_model_name, tags=tags)
         else:
             logging.info(f"Model for {self.symbol} failed thresholds")
@@ -147,5 +155,6 @@ class DeploymentPipeline:
             "RidgeClassifier": RidgeClassifier(class_weight=class_weights),
             "KNeighborsClassifier": KNeighborsClassifier(),
             "MLPClassifier": MLPClassifier(),
-            "LightGBM": LGBMClassifier(class_weight=class_weights)
+            "LightGBM": LGBMClassifier(class_weight=class_weights),
+            "NeuralNet": NeuralNet(class_weight=class_weights)
         }
