@@ -11,6 +11,7 @@ from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.utils.class_weight import compute_class_weight
 import xgboost as xgb
+from lightgbm import LGBMClassifier
 import mlflow
 
 import utils
@@ -145,5 +146,6 @@ class DeploymentPipeline:
             "AdaBoostClassifier": AdaBoostClassifier(algorithm='SAMME'),
             "RidgeClassifier": RidgeClassifier(class_weight=class_weights),
             "KNeighborsClassifier": KNeighborsClassifier(),
-            "MLPClassifier": MLPClassifier()
+            "MLPClassifier": MLPClassifier(),
+            "LightGBM": LGBMClassifier(class_weight=class_weights)
         }
