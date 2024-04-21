@@ -3,7 +3,7 @@ import time
 import warnings
 
 import settings
-from deployment_pipeline import DeploymentPipeline
+from deployment.deployment_pipeline import DeploymentPipeline
 
 logging.basicConfig(level=logging.INFO)
 

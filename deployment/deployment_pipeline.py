@@ -14,8 +14,8 @@ import xgboost as xgb
 from lightgbm import LGBMClassifier
 import mlflow
 
-import utils
-from data_generator import DataGenerator
+import deployment.utils as utils
+from data.data_generator import DataGenerator
 import settings
 from neural_net import NeuralNet
 

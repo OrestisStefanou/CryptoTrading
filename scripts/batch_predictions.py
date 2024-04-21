@@ -3,7 +3,7 @@ import warnings
 
 import mlflow
 
-from data_generator import DataGenerator
+from data.data_generator import DataGenerator
 import settings
 
 # Filter out the specific warning
