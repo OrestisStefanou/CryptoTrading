@@ -18,8 +18,6 @@ if __name__ == "__main__":
     count = 0
     # Get all registered models
     for model in mlflow_client.search_registered_models():
-        print(model)
-        print('--------------------------')
         model_name = model.name
         model_version = model.latest_versions[0].version
         tags = model.latest_versions[0].tags

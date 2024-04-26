@@ -84,7 +84,7 @@ class DataGenerator:
         return pd.DataFrame(time_series)
 
 
-    def _get_crypto_daily_time_series(self, market: str = 'EUR') -> pd.DataFrame:
+    def _get_crypto_daily_time_series(self, market: str = 'USD') -> pd.DataFrame:
         json_response = httpx.get(f'https://www.alphavantage.co/query?function=DIGITAL_CURRENCY_DAILY&symbol={self.symbol}&market={market}&apikey=KNPL6J9N740SLRRG').json()
         time_series = []
 
@@ -92,10 +92,10 @@ class DataGenerator:
             time_series.append(
                 {
                     "date": date,
-                    "open": float(data["1b. open (USD)"]),
-                    "high": float(data["2b. high (USD)"]),
-                    "low": float(data["3b. low (USD)"]),
-                    "close": float(data["4b. close (USD)"]),
+                    "open": float(data["1. open"]),
+                    "high": float(data["2. high"]),
+                    "low": float(data["3. low"]),
+                    "close": float(data["4. close"]),
                     "volume": float(data["5. volume"]),
                 }
             )
@@ -120,7 +120,7 @@ class DataGenerator:
             market = 'USD'
 
         time_series_df = self._get_crypto_daily_time_series(market)
-        self.symbol = f"{self.symbol}{market}"
+        self.symbol = f"{self.symbol}USDT"
 
         indicators_dfs = []
         for indicator in settings.indicators:
