@@ -17,7 +17,7 @@ import mlflow
 import deployment.utils as utils
 from data.data_generator import DataGenerator
 import settings
-from neural_net import NeuralNet
+from deep_learning.neural_net import NeuralNet
 
 logging.basicConfig(level=logging.INFO)
 
@@ -120,7 +120,7 @@ class DeploymentPipeline:
 
     def _create_train_test_sets(
         self,
-        training_data_pct: float = 0.97,
+        training_data_pct: float = 0.95,
         target_col_name: str = 'target'
     ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """

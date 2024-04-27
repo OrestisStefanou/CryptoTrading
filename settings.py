@@ -2,6 +2,8 @@ series_type = 'close'
 time_period = 7
 interval = 'daily'
 apikey = 'KNPL6J9N740SLRRG'
+prediction_window_days = 5
+target_return = 0.07
 indicators = ['OBV', 'AD', 'ADX', 'AROON', 'MACD', 'RSI', 'STOCH', 'MFI', 'DX', 'TRIX', 'BBANDS', 'PPO']
 
 symbols = [

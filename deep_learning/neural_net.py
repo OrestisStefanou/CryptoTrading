@@ -18,8 +18,8 @@ class NeuralNet:
         # Build the neural network
         self._model = tf.keras.Sequential([
             self._normalizer,
-            tf.keras.layers.Dense(128, activation='relu'),
-            tf.keras.layers.Dense(128, activation='relu'),
+            tf.keras.layers.Dense(64, activation='relu'),
+            tf.keras.layers.Dense(64, activation='relu'),
             tf.keras.layers.Dense(1, activation='sigmoid')
         ])
 
@@ -43,7 +43,6 @@ class NeuralNet:
         return [
             [1 - prob, prob] for prob in y_pred_probs
         ]
-
 
     def predict(self, X_test: pd.DataFrame) -> list[float]:
         return self._model.predict(X_test.to_numpy())

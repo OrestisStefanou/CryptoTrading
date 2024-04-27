@@ -136,16 +136,16 @@ class DataGenerator:
         return merged_df
 
 
-    def get_dataset(self, look_ahead_days: int = 7) -> pd.DataFrame:
+    def get_dataset(self, look_ahead_days: int = settings.prediction_window_days) -> pd.DataFrame:
         data = self._fetch_data()
         
         # Creata a new column with the target variable
-        data['max_next_7_days'] = data['close'].rolling(window=look_ahead_days).max().shift(-look_ahead_days + 1)
+        data['max_in_next_window_days'] = data['high'].rolling(window=look_ahead_days).max().shift(-look_ahead_days + 1)
         data.dropna(inplace=True)
-        percentage_difference = (data['max_next_7_days'] - data['close']) / data['close']
-        data['target'] = (percentage_difference >= 0.05).astype(int)
+        percentage_difference = (data['max_in_next_window_days'] - data['close']) / data['close']
+        data['target'] = (percentage_difference >= settings.target_return).astype(int)
         
-        data.drop(columns=['max_next_7_days',], axis=1, inplace=True)
+        data.drop(columns=['max_in_next_window_days',], axis=1, inplace=True)
         data = self._transform_data(data)
         data.dropna(inplace=True)
         
