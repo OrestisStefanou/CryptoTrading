@@ -1,5 +1,6 @@
 import logging
 import datetime as dt
+from enum import Enum
 
 import numpy as np
 import pandas as pd
@@ -21,12 +22,19 @@ from deep_learning.neural_net import NeuralNet
 
 logging.basicConfig(level=logging.INFO)
 
+
+class TrendType(Enum):
+    UPTREND = 'uptrend'
+    DOWNTREND = 'downtrend'
+
+
 class DeploymentPipeline:
-    def __init__(self, symbol: str) -> None:
+    def __init__(self, symbol: str, trend_type: TrendType) -> None:
         self.symbol = symbol
+        self.trend_type = trend_type.value
         self._ml_flow_client = mlflow.MlflowClient(tracking_uri=settings.tracking_uri)
         mlflow.set_tracking_uri(settings.tracking_uri)
-        mlflow.set_experiment(f"{symbol}_Models_{dt.datetime.now().isoformat()}")   # Update this
+        mlflow.set_experiment(f"{symbol}_{trend_type.value}_{dt.datetime.now().isoformat()}")   # Update this
         self._evaluation_results = {
             'Classifier': [],
             'Accuracy': [],
@@ -36,10 +44,10 @@ class DeploymentPipeline:
             'Overall_Score': [],
             'Run_Id': []
         }
-        self._artifact_path: str = f'{symbol}_classifier'
-        self._registered_model_name: str = f"{symbol}_model"
+        self._artifact_path: str = f'{symbol}_{trend_type.value}_classifier'
+        self._registered_model_name: str = f"{symbol}_{trend_type.value}_model"
 
-    def train_models(self, training_data_pct: float = 0.97) -> None:
+    def train_models(self, training_data_pct: float = 0.95) -> None:
         X_train, y_train, X_test, y_test = self._create_train_test_sets(
             training_data_pct=training_data_pct
         )
@@ -78,6 +86,7 @@ class DeploymentPipeline:
         results_df.sort_values(by=['Overall_Score'], ascending=False, inplace=True)
         results_df.reset_index(inplace=True)
         run_id = results_df['Run_Id'][0]
+        classifier_name = results_df['Classifier'][0]
 
         # Check if best performing model is passing the performance thresholds
         positive_accuracy = results_df['Positive_Accuracy'][0]
@@ -91,12 +100,14 @@ class DeploymentPipeline:
             model_uri = f"runs:/{run_id}/{self._artifact_path}"
             # Store the performance of the metrics in the tags
             tags = {
-                "positive_accuracy": positive_accuracy,
-                "negative_accuracy": negative_accuracy,
-                "overall_score": overall_score,
-                "accuracy": accuracy,
-                "precision": precision,
-                "symbol": self.symbol,
+                'positive_accuracy': positive_accuracy,
+                'negative_accuracy': negative_accuracy,
+                'overall_score': overall_score,
+                'accuracy': accuracy,
+                'precision': precision,
+                'symbol': self.symbol,
+                'classifier': classifier_name,
+                'classified_trend': self.trend_type
             }
             mlflow.register_model(model_uri=model_uri, name=self._registered_model_name, tags=tags)
         else:

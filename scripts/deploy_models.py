@@ -1,9 +1,10 @@
 import logging
 import time
 import warnings
+import sys
 
 import settings
-from deployment.deployment_pipeline import DeploymentPipeline
+from deployment.deployment_pipeline import DeploymentPipeline, TrendType
 
 logging.basicConfig(level=logging.INFO)
 
@@ -13,10 +14,11 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 if __name__ == '__main__':
     count = 0
+    trend_type = sys.argv[1]
     for crypto_symbol in settings.symbols:
         logging.info(f"Running deployment pipeline for {crypto_symbol}")
         try:
-            pipeline = DeploymentPipeline(symbol=crypto_symbol)
+            pipeline = DeploymentPipeline(symbol=crypto_symbol, trend_type=TrendType(trend_type))
             pipeline.run()
             count += 1
         except Exception as e:
