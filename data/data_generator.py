@@ -136,14 +136,31 @@ class DataGenerator:
         return merged_df
 
 
-    def get_dataset(self, look_ahead_days: int = settings.prediction_window_days) -> pd.DataFrame:
+    def get_dataset(
+        self,
+        look_ahead_days: int = settings.prediction_window_days,
+        downtrend: bool = False
+    ) -> pd.DataFrame:
+        """
+        Returns the dataset that will be user for training and evaluation of the models
+        Params:
+        - look_ahead_days: the prediction timeframe
+        - downtrend: If True the target variable will contain 1 if the price will go down,
+        If False the target variable will contain 1 if the price will go up
+        """
         data = self._fetch_data()
         
-        # Creata a new column with the target variable
-        data['max_in_next_window_days'] = data['high'].rolling(window=look_ahead_days).max().shift(-look_ahead_days + 1)
-        data.dropna(inplace=True)
-        percentage_difference = (data['max_in_next_window_days'] - data['close']) / data['close']
-        data['target'] = (percentage_difference >= settings.target_return).astype(int)
+        # Creata a new column with the target variable        
+        if downtrend:
+            data['min_in_next_window_days'] = data['low'].rolling(window=look_ahead_days).min().shift(-look_ahead_days + 1)
+            data.dropna(inplace=True)
+            percentage_difference = (data['min_in_next_window_days'] - data['close']) / data['close']
+            data['target'] = (percentage_difference >= settings.target_downtrend_pct).astype(int)
+        else:
+            data['max_in_next_window_days'] = data['high'].rolling(window=look_ahead_days).max().shift(-look_ahead_days + 1)
+            data.dropna(inplace=True)
+            percentage_difference = (data['max_in_next_window_days'] - data['close']) / data['close']
+            data['target'] = (percentage_difference >= settings.target_uptrend_pct).astype(int)
         
         data.drop(columns=['max_in_next_window_days',], axis=1, inplace=True)
         data = self._transform_data(data)

@@ -1,15 +1,18 @@
 import time
 import warnings
+import sys
 
 import mlflow
 
 from data.data_generator import DataGenerator
+from deployment.deployment_pipeline import TrendType
 import settings
 
 # Filter out the specific warning
 warnings.filterwarnings("ignore", category=UserWarning)
 
 if __name__ == "__main__":
+    trend_type = TrendType(sys.argv[1])
     mlflow_client = mlflow.MlflowClient(tracking_uri=settings.tracking_uri)
     mlflow.set_tracking_uri(settings.tracking_uri)
 
@@ -26,6 +29,10 @@ if __name__ == "__main__":
         try:
             model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/{model_version}")
             symbol = tags['symbol']
+            classified_trend = tags['classified_trend']
+            if classified_trend != trend_type.value:
+                continue
+
             prediction_input = DataGenerator(symbol).get_prediction_input()
             count += 1
 
