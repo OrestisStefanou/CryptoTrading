@@ -27,20 +27,30 @@ if __name__ == "__main__":
         
         # Load the model
         try:
-            model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/{model_version}")
-            symbol = tags['symbol']
             classified_trend = tags['classified_trend']
             if classified_trend != trend_type.value:
                 continue
 
+            classifier = tags['classifier']
+            symbol = tags['symbol']
             prediction_input = DataGenerator(symbol).get_prediction_input()
+            if classifier == 'NeuralNet':
+                model = mlflow.tensorflow.load_model(model_uri=f'models:/{model_name}/{model_version}')
+                prediction = model.predict(prediction_input)[0][0]
+            else:
+                model = mlflow.sklearn.load_model(model_uri=f"models:/{model_name}/{model_version}")
+                if classifier == 'RidgeClassifier':
+                    prediction = model.predict(prediction_input)[0]
+                else:
+                    prediction = model.predict_proba(prediction_input)[0][1]
+
             count += 1
 
             # Get predictions
             predictions.append(
                 {
                     "symbol": symbol,
-                    "prediction": model.predict(prediction_input),
+                    "prediction": prediction,
                     "tags": tags
                 }
             )
