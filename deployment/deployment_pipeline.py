@@ -158,8 +158,8 @@ class DeploymentPipeline:
 
     def _get_classifiers(self, class_weights: dict[str, float], scale_pos_weight: float = None) -> dict[str, object]:
         return {
-            "Random Forest": RandomForestClassifier(class_weight=class_weights),
-            "Support Vector Machine": SVC(probability=True, class_weight=class_weights),
+            "RandomForest": RandomForestClassifier(class_weight=class_weights),
+            "SupportVectorMachine": SVC(probability=True, class_weight=class_weights),
             "XGBoost": xgb.XGBClassifier(scale_pos_weight=scale_pos_weight),
             "HistGradientBoostingClassifier": HistGradientBoostingClassifier(class_weight=class_weights),
             "AdaBoostClassifier": AdaBoostClassifier(algorithm='SAMME'),

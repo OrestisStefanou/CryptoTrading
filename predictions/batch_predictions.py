@@ -6,6 +6,7 @@ import mlflow
 
 from data.data_generator import DataGenerator
 from deployment.deployment_pipeline import TrendType
+from model_registry.deployed_model import DeployedModel
 import settings
 
 # Filter out the specific warning
@@ -21,31 +22,25 @@ if __name__ == "__main__":
     count = 0
     # Get all registered models
     for model in mlflow_client.search_registered_models():
-        model_name = model.name
-        model_version = model.latest_versions[0].version
-        tags = model.latest_versions[0].tags
-        
+        deployed_model = DeployedModel(model)        
         # Load the model
         try:
-            model = mlflow.pyfunc.load_model(model_uri=f"models:/{model_name}/{model_version}")
-            symbol = tags['symbol']
-            classified_trend = tags['classified_trend']
-            if classified_trend != trend_type.value:
+            if deployed_model.classified_trend != trend_type.value:
                 continue
 
-            prediction_input = DataGenerator(symbol).get_prediction_input()
+            prediction_input = DataGenerator(deployed_model.symbol).get_prediction_input()
             count += 1
 
             # Get predictions
             predictions.append(
                 {
-                    "symbol": symbol,
-                    "prediction": model.predict(prediction_input),
-                    "tags": tags
+                    "symbol": deployed_model.symbol,
+                    "prediction": deployed_model.predict(prediction_input),
+                    "tags": deployed_model.tags
                 }
             )
         except Exception as e:
-            print(f"Error loading model {model_name}: {e}")
+            print(f"Error loading model {model.name}: {e}")
 
         if count == 5:
             time.sleep(65)  # Provider requests limitation is 30 requests per minute
