@@ -12,10 +12,14 @@ class DataGenerator:
     def _get_techninal_indicator_daily_time_series(
         self,
         indicator: str,
+        time_period: int = None
     ) -> pd.DataFrame:
+        if time_period is None:
+            time_period = settings.time_period
+
         params = {
             'apikey': settings.apikey,
-            'symbol': self.symbol,
+            'symbol': f"{self.symbol}USDT",
             'function': indicator,
             'interval': settings.interval,
         }
@@ -24,11 +28,11 @@ class DataGenerator:
             indicator = 'Chaikin A/D'
 
         if indicator in ['SMA', 'WMA', 'RSI', 'BBANDS', 'TRIX']:
-            params['time_period'] = settings.time_period
+            params['time_period'] = time_period
             params['series_type'] = settings.series_type
 
         if indicator in ['DX', 'MFI', 'AROON', 'ADX']:
-            params['time_period'] = settings.time_period
+            params['time_period'] = time_period
 
         if indicator in ['MACD', 'PPO']:
             params['series_type'] = settings.series_type
@@ -74,10 +78,14 @@ class DataGenerator:
                 }
                 )
             else:
+                if "time_period" in params:
+                    indicator_name = f"{time_period}_day_{indicator}"
+                else:
+                    indicator_name = indicator
                 time_series.append(
                     {
                         "date": date,
-                        f"{indicator}": float(data[indicator])
+                        indicator_name: float(data[indicator])
                     }
                 )
 
@@ -106,23 +114,26 @@ class DataGenerator:
     def _transform_data(self, data: pd.DataFrame) -> pd.DataFrame:
         data['OBV_pct_change'] = data['OBV'].pct_change() * 100
         data['AD_pct_change'] = data['Chaikin A/D'].pct_change() * 100
-        data['TRIX'] = data['TRIX'] * 100
+        data['7_day_TRIX'] = data['7_day_TRIX'] * 100
         data['BBANDS_distance_pct'] = ((data['Real_Upper_Band'] - data['Real_Lower_Band']) / data['Real_Lower_Band']) * 100
-        data.drop(columns=['OBV', 'Chaikin A/D', 'Real_Upper_Band', 'Real_Lower_Band', 'close', 'volume', 'open', 'high', 'low', 'date'], axis=1, inplace=True)
+        data['2_day_SMA_10_day_SMA_pct_diff'] = ((data['2_day_SMA'] - data['10_day_SMA']) / data['10_day_SMA']) * 100
+        data['2_day_SMA_20_day_SMA_pct_diff'] = ((data['2_day_SMA'] - data['20_day_SMA']) / data['20_day_SMA']) * 100
+        data.drop(columns=['OBV', 'Chaikin A/D', 'Real_Upper_Band', 'Real_Lower_Band', '2_day_SMA', '10_day_SMA', '20_day_SMA', 'date'], axis=1, inplace=True)
         data.dropna(inplace=True)
-        return data.astype(float)
+        columns_to_convert = data.columns[data.columns != 'target']
+        data[columns_to_convert] = data[columns_to_convert].astype(float)
+        return data
 
 
     def _fetch_data(self) -> pd.DataFrame:
-        if self.symbol in ['BTC', 'ETH', 'SOL', 'ADA', 'TRX', 'MATIC', 'LTC', 'UNI', 'ATOM', 'MKR', 'GRT', 'SNX', 'NEO', 'GNO', 'ALGO']:
-            market = 'EUR'
-        else:
-            market = 'USD'
-
-        time_series_df = self._get_crypto_daily_time_series(market)
-        self.symbol = f"{self.symbol}USDT"
+        time_series_df = self._get_techninal_indicator_daily_time_series(
+            indicator="SMA",
+            time_period=10
+        )
 
         indicators_dfs = []
+        indicators_dfs.append(self._get_techninal_indicator_daily_time_series(indicator="SMA", time_period=2))
+        indicators_dfs.append(self._get_techninal_indicator_daily_time_series(indicator="SMA", time_period=20))
         for indicator in settings.indicators:
             indicators_dfs.append(self._get_techninal_indicator_daily_time_series(indicator))
 
@@ -149,20 +160,16 @@ class DataGenerator:
         If False the target variable will contain 1 if the price will go up
         """
         data = self._fetch_data()
-        
-        # Creata a new column with the target variable        
+        # Creata a new column with the target variable
+        data['future_SMA'] = data['10_day_SMA'].shift(-look_ahead_days)
+        data.dropna(inplace=True)
+        percentage_difference = (data['future_SMA'] - data['10_day_SMA']) / data['10_day_SMA']
         if downtrend:
-            data['min_in_next_window_days'] = data['low'].rolling(window=look_ahead_days).min().shift(-look_ahead_days + 1)
-            data.dropna(inplace=True)
-            percentage_difference = (data['min_in_next_window_days'] - data['close']) / data['close']
-            data['target'] = (percentage_difference >= settings.target_downtrend_pct).astype(int)
+            data['target'] = (percentage_difference <= settings.target_downtrend_pct).astype(int)
         else:
-            data['max_in_next_window_days'] = data['high'].rolling(window=look_ahead_days).max().shift(-look_ahead_days + 1)
-            data.dropna(inplace=True)
-            percentage_difference = (data['max_in_next_window_days'] - data['close']) / data['close']
             data['target'] = (percentage_difference >= settings.target_uptrend_pct).astype(int)
-        
-        data.drop(columns=['max_in_next_window_days',], axis=1, inplace=True)
+
+        data.drop(columns=['future_SMA',], axis=1, inplace=True)
         data = self._transform_data(data)
         data.dropna(inplace=True)
         
