@@ -22,7 +22,6 @@ from deep_learning.neural_net import NeuralNet
 
 logging.basicConfig(level=logging.INFO)
 
-
 class TrendType(Enum):
     UPTREND = 'uptrend'
     DOWNTREND = 'downtrend'
@@ -138,7 +137,11 @@ class DeploymentPipeline:
         Returns a tuple that contains:
         (X_train, y_train, X_test, y_test)
         """
-        dataset = DataGenerator(self.symbol).get_dataset()
+        if self.trend_type == TrendType.DOWNTREND.value:
+            dataset = DataGenerator(self.symbol).get_dataset(downtrend=True)
+        else:
+            dataset = DataGenerator(self.symbol).get_dataset(downtrend=False)
+
         train_dataset, test_dataset = utils.split_dataset(dataset, training_pct=training_data_pct)
 
         X_train = train_dataset.drop(columns=[target_col_name], axis=1)
