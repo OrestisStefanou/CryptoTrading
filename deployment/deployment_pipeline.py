@@ -22,8 +22,6 @@ from deep_learning.neural_net import NeuralNet
 
 logging.basicConfig(level=logging.INFO)
 
-# DOWNTREND IS NOT USED ANYWHERE IN THE DATA GENERATOR!!!!!!!!!!
-
 class TrendType(Enum):
     UPTREND = 'uptrend'
     DOWNTREND = 'downtrend'
