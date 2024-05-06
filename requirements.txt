@@ -4,3 +4,4 @@ mlflow==2.11.3
 xgboost==2.0.3
 lightgbm==4.3.0
 tensorflow==2.16.1
+duckdb==0.10.2
