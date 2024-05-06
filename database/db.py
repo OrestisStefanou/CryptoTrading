@@ -9,6 +9,7 @@ class Database:
     
     def store_predictions(
         self,
+        symbol: str,
         model_name: str,
         model_version: int,
         prediction_prob: float,
@@ -19,7 +20,7 @@ class Database:
         with duckdb.connect(database=settings.database_name, read_only=self._read_only, config=self._config) as con:
             con.execute(
                 """
-                INSERT INTO model_predictions VALUES (current_date(), ?, ?, ?, ?, ?, ?)
+                INSERT INTO model_predictions VALUES (current_date(), ?, ?, ?, ?, ?, ?, ?)
                 """,
-                [model_name, model_version, prediction_prob, prediction_input, target_pct, prediction_window_days]
+                [symbol, model_name, model_version, prediction_prob, prediction_input, target_pct, prediction_window_days]
             )
