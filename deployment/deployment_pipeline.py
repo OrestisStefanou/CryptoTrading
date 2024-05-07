@@ -43,8 +43,9 @@ class DeploymentPipeline:
             'Overall_Score': [],
             'Run_Id': []
         }
-        self._artifact_path: str = f'{symbol}_{trend_type.value}_classifier'
-        self._registered_model_name: str = f"{symbol}_{trend_type.value}_model"
+        self._classifier_artifact_path = f'{symbol}_{trend_type.value}_classifier'
+        self._explainer_artifact_path = f'{symbol}_{trend_type.value}_explainer'
+        self._registered_model_name = f"{symbol}_{trend_type.value}_model"
         self._prediction_window_days = settings.prediction_window_days
         self._target_pct = settings.target_uptrend_pct if trend_type == TrendType.UPTREND else settings.target_downtrend_pct
 
@@ -71,13 +72,13 @@ class DeploymentPipeline:
                 if isinstance(clf, NeuralNet):
                     mlflow.tensorflow.log_model(
                         model=clf._model,
-                        artifact_path=self._artifact_path
+                        artifact_path=self._classifier_artifact_path
                     )
                 else:
                     mlflow.sklearn.log_model(
                         sk_model=clf,
                         signature=signature,
-                        artifact_path=self._artifact_path
+                        artifact_path=self._classifier_artifact_path
                     )
             self._store_evaluation_results(classifier_name=clf_name, metrics=metrics, run_id=run.info.run_id)
 
@@ -98,7 +99,7 @@ class DeploymentPipeline:
 
         if positive_accuracy > 0.5 and negative_accuracy > 0.5 and overall_score > 0.5:
             logging.info(f"Registering model for symbol: {self.symbol}")
-            model_uri = f"runs:/{run_id}/{self._artifact_path}"
+            model_uri = f"runs:/{run_id}/{self._classifier_artifact_path}"
             # Store the performance of the metrics in the tags
             tags = {
                 'positive_accuracy': positive_accuracy,

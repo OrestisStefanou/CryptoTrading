@@ -2,6 +2,7 @@ import pandas as pd
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.metrics import precision_score
 from sklearn.linear_model import RidgeClassifier
+import shap
 
 def split_dataset(dataset: pd.DataFrame, training_pct: float = 0.95) -> tuple[pd.DataFrame, pd.DataFrame]:
     n = len(dataset)
@@ -65,3 +66,10 @@ def evaluate_classifier(
         "false_negatives": cm[1][0],
         "overall_score": get_overall_score(accuracy, precision, negative_accuracy, positive_accuracy)
     }
+
+
+def create_explainer(classifier: object, X: pd.DataFrame) -> shap.explainers.KernelExplainer:
+    if isinstance(classifier, RidgeClassifier):
+       return shap.explainers.KernelExplainer(classifier.predict, X)
+    
+    return shap.explainers.KernelExplainer(classifier.predict_proba, X)
