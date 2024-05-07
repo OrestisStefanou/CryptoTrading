@@ -33,7 +33,7 @@ class DeploymentPipeline:
         self.trend_type = trend_type.value
         self._ml_flow_client = mlflow.MlflowClient(tracking_uri=settings.tracking_uri)
         mlflow.set_tracking_uri(settings.tracking_uri)
-        mlflow.set_experiment(f"{symbol}_{trend_type.value}_{dt.datetime.now().isoformat()}")   # Update this
+        mlflow.set_experiment(f"{symbol}_{trend_type.value}_{dt.datetime.now().isoformat()}")
         self._evaluation_results = {
             'Classifier': [],
             'Accuracy': [],
@@ -45,6 +45,8 @@ class DeploymentPipeline:
         }
         self._artifact_path: str = f'{symbol}_{trend_type.value}_classifier'
         self._registered_model_name: str = f"{symbol}_{trend_type.value}_model"
+        self._prediction_window_days = settings.prediction_window_days
+        self._target_pct = settings.target_uptrend_pct if trend_type == TrendType.UPTREND else settings.target_downtrend_pct
 
     def train_models(self, training_data_pct: float = 0.95) -> None:
         X_train, y_train, X_test, y_test = self._create_train_test_sets(
@@ -106,7 +108,9 @@ class DeploymentPipeline:
                 'precision': precision,
                 'symbol': self.symbol,
                 'classifier': classifier_name,
-                'classified_trend': self.trend_type
+                'classified_trend': self.trend_type,
+                'target_pct': self._target_pct,
+                'prediction_window_days': self._prediction_window_days
             }
             mlflow.register_model(model_uri=model_uri, name=self._registered_model_name, tags=tags)
         else:
