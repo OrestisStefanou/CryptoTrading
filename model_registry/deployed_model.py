@@ -36,7 +36,7 @@ class DeployedModel:
             else:
                 prediction =  self.model.predict_proba(model_input)[0][1]        
 
-        self._store_predictions(prediction_prob=float(prediction), model_input=model_input.to_records())
+        self._store_predictions(prediction_prob=float(prediction), model_input=model_input.to_dict('records'))
         return prediction
 
     def _store_predictions(self, prediction_prob: float, model_input: dict) -> None:
