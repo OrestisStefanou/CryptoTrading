@@ -22,6 +22,9 @@ if __name__ == "__main__":
     count = 0
     # Get all registered models
     for model in mlflow_client.search_registered_models():
+        print(model)
+        print('---------------------------------')
+        continue
         deployed_model = DeployedModel(model)        
         # Load the model
         try:

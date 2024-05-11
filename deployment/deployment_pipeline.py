@@ -1,6 +1,7 @@
 import logging
 import datetime as dt
 from enum import Enum
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -49,7 +50,20 @@ class DeploymentPipeline:
         self._prediction_window_days = settings.prediction_window_days
         self._target_pct = settings.target_uptrend_pct if trend_type == TrendType.UPTREND else settings.target_downtrend_pct
 
-    def train_models(self, training_data_pct: float = 0.95) -> None:
+    def train_models(self, training_data_pct: float = 0.95) -> dict[str, object]:
+        """
+        This method trains the classifiers and stores the evaluation metrics in
+        self._evaluation_results attribute.
+        Returns:
+        A dict with the name of the classifier and the trained model.
+        Example:
+        {
+            "RandomForest": sklearn.ensemble.RandomForestClassifier,
+            "XGBoost": xgb.XGBClassifier,
+            "LightGBM": lightgbm.LGBMClassifier,
+            "NeuralNet": deep_learning.neural_net.NeuralNet
+        }
+        """
         X_train, y_train, X_test, y_test = self._create_train_test_sets(
             training_data_pct=training_data_pct
         )
@@ -81,9 +95,16 @@ class DeploymentPipeline:
                         artifact_path=self._classifier_artifact_path
                     )
             self._store_evaluation_results(classifier_name=clf_name, metrics=metrics, run_id=run.info.run_id)
+        
+        return classifiers
 
-
-    def register_best_performing_model(self) -> None:
+    def register_best_performing_model(self) -> Optional[mlflow.entities.model_registry.ModelVersion]:
+        """
+        Stores the best performing model in the model registry
+        Returns the version of the deployed model or None 
+        in case that the best model failed to pass
+        the performance thresholds.
+        """
         results_df = pd.DataFrame(self._evaluation_results)
         results_df.sort_values(by=['Overall_Score'], ascending=False, inplace=True)
         results_df.reset_index(inplace=True)
@@ -101,6 +122,7 @@ class DeploymentPipeline:
             logging.info(f"Registering model for symbol: {self.symbol}")
             model_uri = f"runs:/{run_id}/{self._classifier_artifact_path}"
             # Store the performance of the metrics in the tags
+            # CREATE A MODEL FOR THE TAGS?
             tags = {
                 'positive_accuracy': positive_accuracy,
                 'negative_accuracy': negative_accuracy,
@@ -113,15 +135,17 @@ class DeploymentPipeline:
                 'target_pct': self._target_pct,
                 'prediction_window_days': self._prediction_window_days
             }
-            mlflow.register_model(model_uri=model_uri, name=self._registered_model_name, tags=tags)
+            model_version = mlflow.register_model(model_uri=model_uri, name=self._registered_model_name, tags=tags)
+            return model_version
         else:
             logging.info(f"Model for {self.symbol} failed thresholds")
+            return None
 
 
     def run(self):
-        self.train_models()
-        self.register_best_performing_model()
-
+        classifiers = self.train_models()
+        model_version = self.register_best_performing_model()
+        # Create and store model explainer
 
     def _store_evaluation_results(self, classifier_name: str, metrics: dict[str, float], run_id: str) -> None:
         self._evaluation_results['Classifier'].append(classifier_name)
@@ -155,7 +179,7 @@ class DeploymentPipeline:
         X_test = test_dataset.drop(columns=[target_col_name], axis=1)
         y_test = test_dataset[target_col_name]
 
-        return(X_train, y_train, X_test, y_test)        
+        return (X_train, y_train, X_test, y_test)        
 
 
     def _calculate_class_weights(self, y_train: pd.DataFrame) -> dict[str, float]:
