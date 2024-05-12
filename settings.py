@@ -38,3 +38,4 @@ symbols = [
 
 tracking_uri = "http://127.0.0.1:8080"
 database_name = "database.db"
+explainers_path = "explainers"

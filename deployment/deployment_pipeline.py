@@ -17,6 +17,7 @@ from lightgbm import LGBMClassifier
 import mlflow
 
 import deployment.utils as utils
+from model_registry.model_tags import ModelTags
 from data.data_generator import DataGenerator
 import settings
 from deep_learning.neural_net import NeuralNet
@@ -49,6 +50,10 @@ class DeploymentPipeline:
         self._registered_model_name = f"{symbol}_{trend_type.value}_model"
         self._prediction_window_days = settings.prediction_window_days
         self._target_pct = settings.target_uptrend_pct if trend_type == TrendType.UPTREND else settings.target_downtrend_pct
+        self.X_train = None
+        self.X_test = None
+        self.y_train = None
+        self.y_test = None
 
     def train_models(self, training_data_pct: float = 0.95) -> dict[str, object]:
         """
@@ -67,9 +72,13 @@ class DeploymentPipeline:
         X_train, y_train, X_test, y_test = self._create_train_test_sets(
             training_data_pct=training_data_pct
         )
+        self.X_train = X_train
+        self.X_test = X_test
+        self.y_train = y_train
+        self.y_test = y_test
+    
         class_weights = self._calculate_class_weights(y_train)
         scale_pos_weight=y_train.value_counts()[0] / y_train.value_counts()[1]
-        logging.info(f"Class weights: {class_weights}")
 
         classifiers = self._get_classifiers(class_weights=class_weights, scale_pos_weight=scale_pos_weight)
         for clf_name, clf in classifiers.items():
@@ -122,30 +131,50 @@ class DeploymentPipeline:
             logging.info(f"Registering model for symbol: {self.symbol}")
             model_uri = f"runs:/{run_id}/{self._classifier_artifact_path}"
             # Store the performance of the metrics in the tags
-            # CREATE A MODEL FOR THE TAGS?
-            tags = {
-                'positive_accuracy': positive_accuracy,
-                'negative_accuracy': negative_accuracy,
-                'overall_score': overall_score,
-                'accuracy': accuracy,
-                'precision': precision,
-                'symbol': self.symbol,
-                'classifier': classifier_name,
-                'classified_trend': self.trend_type,
-                'target_pct': self._target_pct,
-                'prediction_window_days': self._prediction_window_days
-            }
-            model_version = mlflow.register_model(model_uri=model_uri, name=self._registered_model_name, tags=tags)
+            
+            tags = ModelTags(
+                positive_accuracy=positive_accuracy,
+                negative_accuracy=negative_accuracy,
+                overall_score=overall_score,
+                accuracy=accuracy,
+                precision=precision,
+                symbol=self.symbol,
+                classifier=classifier_name,
+                classified_trend=self.trend_type,
+                target_pct=self._target_pct,
+                prediction_window_days=self._prediction_window_days,
+                feature_names=list(self.X_train.columns)
+            )
+            model_version = mlflow.register_model(model_uri=model_uri, name=self._registered_model_name, tags=tags.to_dict())
             return model_version
         else:
             logging.info(f"Model for {self.symbol} failed thresholds")
             return None
 
+    def create_and_store_model_explainer(
+        self,
+        classifier: object,
+        model_version: int,
+    ) -> None:
+        explainer = utils.create_explainer(classifier=classifier, X=self.X_train)
+        shap_values = explainer.shap_values(self.X_test)
+        print("SHAP VALUES LEN: ", len(shap_values))
+        print("SHAP VALUES 0 LEN: ", len(shap_values[0]))
+        utils.store_explainer(
+            explainer=explainer,
+            model_name=self._registered_model_name,
+            model_version=model_version
+        )
 
     def run(self):
         classifiers = self.train_models()
         model_version = self.register_best_performing_model()
-        # Create and store model explainer
+        if model_version:
+            classifier_name = model_version.tags['classifier']
+            self.create_and_store_model_explainer(
+                classifier=classifiers[classifier_name],
+                model_version=model_version.version
+            )
 
     def _store_evaluation_results(self, classifier_name: str, metrics: dict[str, float], run_id: str) -> None:
         self._evaluation_results['Classifier'].append(classifier_name)

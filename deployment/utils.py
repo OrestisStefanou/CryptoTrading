@@ -1,8 +1,13 @@
+import os
+
 import pandas as pd
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.metrics import precision_score
 from sklearn.linear_model import RidgeClassifier
 import shap
+import joblib
+
+import settings
 
 def split_dataset(dataset: pd.DataFrame, training_pct: float = 0.95) -> tuple[pd.DataFrame, pd.DataFrame]:
     n = len(dataset)
@@ -70,6 +75,23 @@ def evaluate_classifier(
 
 def create_explainer(classifier: object, X: pd.DataFrame) -> shap.explainers.KernelExplainer:
     if isinstance(classifier, RidgeClassifier):
-       return shap.explainers.KernelExplainer(classifier.predict, X)
+       return shap.explainers.KernelExplainer(classifier.predict, shap.kmeans(X, 10))
     
-    return shap.explainers.KernelExplainer(classifier.predict_proba, X)
+    return shap.explainers.KernelExplainer(classifier.predict_proba, shap.kmeans(X, 10))
+
+
+def store_explainer(
+    explainer: shap.Explainer,
+    model_name: str,
+    model_version: str,
+) -> None:
+    """
+    Stores the explainer for the model with model name
+    <model_name> and version <model_version>
+    """
+    explainer_path = f'{settings.explainers_path}/{model_name}/{model_version}'
+    if not os.path.exists(explainer_path):
+        os.makedirs(explainer_path)
+
+    with open(f'{explainer_path}/explainer', 'wb') as f:
+        joblib.dump(explainer, f)

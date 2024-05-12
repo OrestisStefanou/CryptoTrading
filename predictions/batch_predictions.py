@@ -22,9 +22,6 @@ if __name__ == "__main__":
     count = 0
     # Get all registered models
     for model in mlflow_client.search_registered_models():
-        print(model)
-        print('---------------------------------')
-        continue
         deployed_model = DeployedModel(model)        
         # Load the model
         try:
@@ -39,7 +36,8 @@ if __name__ == "__main__":
                 {
                     "symbol": deployed_model.symbol,
                     "prediction": deployed_model.predict(prediction_input),
-                    "tags": deployed_model.tags
+                    "tags": deployed_model.tags.to_dict(),
+                    "shap_values": deployed_model._get_shap_values(prediction_input)
                 }
             )
         except Exception as e:
