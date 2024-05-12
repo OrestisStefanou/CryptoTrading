@@ -6,6 +6,9 @@ from sklearn.metrics import precision_score
 from sklearn.linear_model import RidgeClassifier
 import shap
 import joblib
+from xgboost import XGBClassifier
+from lightgbm import LGBMClassifier
+from deep_learning.neural_net import NeuralNet
 
 import settings
 
@@ -73,11 +76,32 @@ def evaluate_classifier(
     }
 
 
-def create_explainer(classifier: object, X: pd.DataFrame) -> shap.explainers.KernelExplainer:
+def create_explainer(classifier: object, X: pd.DataFrame) -> shap.Explainer:
     if isinstance(classifier, RidgeClassifier):
-       return shap.explainers.KernelExplainer(classifier.predict, shap.kmeans(X, 10))
+       return shap.explainers.KernelExplainer(
+           model=classifier.predict, 
+           data=shap.kmeans(X, 10),
+           feature_names=list(X.columns)
+        )
     
-    return shap.explainers.KernelExplainer(classifier.predict_proba, shap.kmeans(X, 10))
+    if isinstance(classifier, XGBClassifier) or isinstance(classifier, LGBMClassifier):
+        return shap.explainers.TreeExplainer(classifier)
+
+    if isinstance(classifier, NeuralNet):
+        def f(X):
+            """
+            SHAP expects model functions to take a 2D numpy array as input, so we define a wrapper function around the original Keras predict function.
+            """
+            return classifier._model.predict([X[:, i] for i in range(X.shape[1])]).flatten()
+
+        return shap.KernelExplainer(f, shap.kmeans(X.to_numpy(), 10))
+
+
+    return shap.explainers.KernelExplainer(
+        model=classifier.predict_proba, 
+        data=shap.kmeans(X, 10),
+        feature_names=list(X.columns)
+    )
 
 
 def store_explainer(

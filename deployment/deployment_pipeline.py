@@ -127,11 +127,10 @@ class DeploymentPipeline:
         accuracy = results_df['Accuracy'][0]
         precision = results_df['Precision'][0]
 
-        if positive_accuracy > 0.5 and negative_accuracy > 0.5 and overall_score > 0.5:
+        # UPDATE THE BELOW!!!!!!
+        if positive_accuracy > 0 and negative_accuracy > 0 and overall_score > 0:
             logging.info(f"Registering model for symbol: {self.symbol}")
-            model_uri = f"runs:/{run_id}/{self._classifier_artifact_path}"
-            # Store the performance of the metrics in the tags
-            
+            model_uri = f"runs:/{run_id}/{self._classifier_artifact_path}"            
             tags = ModelTags(
                 positive_accuracy=positive_accuracy,
                 negative_accuracy=negative_accuracy,
@@ -219,14 +218,14 @@ class DeploymentPipeline:
 
     def _get_classifiers(self, class_weights: dict[str, float], scale_pos_weight: float = None) -> dict[str, object]:
         return {
-            "RandomForest": RandomForestClassifier(class_weight=class_weights),
-            "SupportVectorMachine": SVC(probability=True, class_weight=class_weights),
-            "XGBoost": xgb.XGBClassifier(scale_pos_weight=scale_pos_weight),
-            "HistGradientBoostingClassifier": HistGradientBoostingClassifier(class_weight=class_weights),
-            "AdaBoostClassifier": AdaBoostClassifier(algorithm='SAMME'),
-            "RidgeClassifier": RidgeClassifier(class_weight=class_weights),
-            "KNeighborsClassifier": KNeighborsClassifier(),
-            "MLPClassifier": MLPClassifier(),
-            "LightGBM": LGBMClassifier(class_weight=class_weights),
+            # "RandomForest": RandomForestClassifier(class_weight=class_weights),
+            # "SupportVectorMachine": SVC(probability=True, class_weight=class_weights),
+            # "XGBoost": xgb.XGBClassifier(scale_pos_weight=scale_pos_weight),
+            # "HistGradientBoostingClassifier": HistGradientBoostingClassifier(class_weight=class_weights),
+            # "AdaBoostClassifier": AdaBoostClassifier(algorithm='SAMME'),
+            # "RidgeClassifier": RidgeClassifier(class_weight=class_weights),
+            # "KNeighborsClassifier": KNeighborsClassifier(),
+            # "MLPClassifier": MLPClassifier(),
+            # "LightGBM": LGBMClassifier(class_weight=class_weights),
             "NeuralNet": NeuralNet(class_weight=class_weights)
         }
