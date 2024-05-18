@@ -1,16 +1,12 @@
-import os
-
 import pandas as pd
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.metrics import precision_score
 from sklearn.linear_model import RidgeClassifier
 import shap
-import joblib
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 from deep_learning.neural_net import NeuralNet
 
-import settings
 
 def split_dataset(dataset: pd.DataFrame, training_pct: float = 0.95) -> tuple[pd.DataFrame, pd.DataFrame]:
     n = len(dataset)
@@ -76,46 +72,19 @@ def evaluate_classifier(
     }
 
 
-def create_explainer(classifier: object, X: pd.DataFrame) -> shap.Explainer:
-    if isinstance(classifier, RidgeClassifier):
-       return shap.explainers.KernelExplainer(
-           model=classifier.predict, 
-           data=shap.kmeans(X, 10),
-           feature_names=list(X.columns)
+def create_explainer(classifier: object, X: pd.DataFrame) -> shap.Explainer:    
+    if isinstance(classifier, NeuralNet):
+        return shap.KernelExplainer(
+            model=classifier.predict_flatten,
+            data=shap.utils.sample(X, 200),
+            feature_names=list(X.columns)
         )
     
     if isinstance(classifier, XGBClassifier) or isinstance(classifier, LGBMClassifier):
         return shap.explainers.TreeExplainer(classifier)
 
-    if isinstance(classifier, NeuralNet):
-        def f(X):
-            """
-            SHAP expects model functions to take a 2D numpy array as input, so we define a wrapper function around the original Keras predict function.
-            """
-            return classifier._model.predict([X[:, i] for i in range(X.shape[1])]).flatten()
-
-        return shap.KernelExplainer(f, shap.kmeans(X.to_numpy(), 10))
-
-
     return shap.explainers.KernelExplainer(
-        model=classifier.predict_proba, 
-        data=shap.kmeans(X, 10),
+        model=classifier.predict, 
+        data=shap.utils.sample(X, 200),
         feature_names=list(X.columns)
     )
-
-
-def store_explainer(
-    explainer: shap.Explainer,
-    model_name: str,
-    model_version: str,
-) -> None:
-    """
-    Stores the explainer for the model with model name
-    <model_name> and version <model_version>
-    """
-    explainer_path = f'{settings.explainers_path}/{model_name}/{model_version}'
-    if not os.path.exists(explainer_path):
-        os.makedirs(explainer_path)
-
-    with open(f'{explainer_path}/explainer', 'wb') as f:
-        joblib.dump(explainer, f)

@@ -46,3 +46,6 @@ class NeuralNet:
 
     def predict(self, X_test: pd.DataFrame) -> list[float]:
         return self._model.predict(X_test.to_numpy())
+
+    def predict_flatten(self, X):
+        return self._model.predict(X).flatten()

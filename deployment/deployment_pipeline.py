@@ -107,12 +107,14 @@ class DeploymentPipeline:
         
         return classifiers
 
-    def register_best_performing_model(self) -> Optional[mlflow.entities.model_registry.ModelVersion]:
+    def register_best_performing_model(self, classifiers: dict[str, object]) -> Optional[mlflow.entities.model_registry.ModelVersion]:
         """
         Stores the best performing model in the model registry
         Returns the version of the deployed model or None 
         in case that the best model failed to pass
         the performance thresholds.
+        Params: 
+        - classifiers: A dict with the name of the classifier and the trained model
         """
         results_df = pd.DataFrame(self._evaluation_results)
         results_df.sort_values(by=['Overall_Score'], ascending=False, inplace=True)
@@ -144,36 +146,36 @@ class DeploymentPipeline:
                 prediction_window_days=self._prediction_window_days,
                 feature_names=list(self.X_train.columns)
             )
+            feature_importance_dict = self._get_feature_importance(
+                classifier=classifiers[classifier_name]
+            )
+            print(feature_importance_dict)
             model_version = mlflow.register_model(model_uri=model_uri, name=self._registered_model_name, tags=tags.to_dict())
             return model_version
         else:
             logging.info(f"Model for {self.symbol} failed thresholds")
             return None
 
-    def create_and_store_model_explainer(
+    def _get_feature_importance(
         self,
         classifier: object,
-        model_version: int,
-    ) -> None:
+    ) -> dict[str, float]:
+        """
+        Returns the a dict with the mean shap value of each feature
+        """
+        feature_importance_dict = dict()
         explainer = utils.create_explainer(classifier=classifier, X=self.X_train)
         shap_values = explainer.shap_values(self.X_test)
-        print("SHAP VALUES LEN: ", len(shap_values))
-        print("SHAP VALUES 0 LEN: ", len(shap_values[0]))
-        utils.store_explainer(
-            explainer=explainer,
-            model_name=self._registered_model_name,
-            model_version=model_version
-        )
+        mean_shap_values = np.mean(shap_values, axis=0)
+        for index, feature_name in enumerate(list(self.X_test.columns)):
+            feature_importance_dict[feature_name] = mean_shap_values[index]
+
+        return feature_importance_dict
 
     def run(self):
+        # Add another method to split the datasets instead of doing it in the train models
         classifiers = self.train_models()
-        model_version = self.register_best_performing_model()
-        if model_version:
-            classifier_name = model_version.tags['classifier']
-            self.create_and_store_model_explainer(
-                classifier=classifiers[classifier_name],
-                model_version=model_version.version
-            )
+        self.register_best_performing_model(classifiers)
 
     def _store_evaluation_results(self, classifier_name: str, metrics: dict[str, float], run_id: str) -> None:
         self._evaluation_results['Classifier'].append(classifier_name)
@@ -220,12 +222,12 @@ class DeploymentPipeline:
         return {
             # "RandomForest": RandomForestClassifier(class_weight=class_weights),
             # "SupportVectorMachine": SVC(probability=True, class_weight=class_weights),
-            # "XGBoost": xgb.XGBClassifier(scale_pos_weight=scale_pos_weight),
+            "XGBoost": xgb.XGBClassifier(scale_pos_weight=scale_pos_weight),
             # "HistGradientBoostingClassifier": HistGradientBoostingClassifier(class_weight=class_weights),
             # "AdaBoostClassifier": AdaBoostClassifier(algorithm='SAMME'),
             # "RidgeClassifier": RidgeClassifier(class_weight=class_weights),
             # "KNeighborsClassifier": KNeighborsClassifier(),
             # "MLPClassifier": MLPClassifier(),
             # "LightGBM": LGBMClassifier(class_weight=class_weights),
-            "NeuralNet": NeuralNet(class_weight=class_weights)
+            # "NeuralNet": NeuralNet(class_weight=class_weights)
         }
