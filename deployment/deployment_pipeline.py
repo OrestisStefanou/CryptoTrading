@@ -55,7 +55,7 @@ class DeploymentPipeline:
         self.y_train = None
         self.y_test = None
 
-    def train_models(self, training_data_pct: float = 0.95) -> dict[str, object]:
+    def train_models(self) -> dict[str, object]:
         """
         This method trains the classifiers and stores the evaluation metrics in
         self._evaluation_results attribute.
@@ -68,29 +68,21 @@ class DeploymentPipeline:
             "LightGBM": lightgbm.LGBMClassifier,
             "NeuralNet": deep_learning.neural_net.NeuralNet
         }
-        """
-        X_train, y_train, X_test, y_test = self._create_train_test_sets(
-            training_data_pct=training_data_pct
-        )
-        self.X_train = X_train
-        self.X_test = X_test
-        self.y_train = y_train
-        self.y_test = y_test
-    
-        class_weights = self._calculate_class_weights(y_train)
-        scale_pos_weight=y_train.value_counts()[0] / y_train.value_counts()[1]
+        """    
+        class_weights = self._calculate_class_weights(self.y_train)
+        scale_pos_weight=self.y_train.value_counts()[0] / self.y_train.value_counts()[1]
 
         classifiers = self._get_classifiers(class_weights=class_weights, scale_pos_weight=scale_pos_weight)
         for clf_name, clf in classifiers.items():
             with mlflow.start_run(run_name=f"{self.symbol}_{clf_name}") as run:
-                metrics = utils.evaluate_classifier(clf, X_train, y_train, X_test, y_test)
+                metrics = utils.evaluate_classifier(clf, self.X_train, self.y_train, self.X_test, self.y_test)
                 if isinstance(clf, xgb.XGBClassifier):
                     mlflow.log_params({"scale_pos_weight": scale_pos_weight})
                 else:
                     mlflow.log_params({"class_weights": class_weights})
 
                 mlflow.log_metrics(metrics)
-                signature = mlflow.models.infer_signature(X_test, clf.predict(X_test))
+                signature = mlflow.models.infer_signature(self.X_test, clf.predict(self.X_test))
                 
                 if isinstance(clf, NeuralNet):
                     mlflow.tensorflow.log_model(
@@ -129,10 +121,12 @@ class DeploymentPipeline:
         accuracy = results_df['Accuracy'][0]
         precision = results_df['Precision'][0]
 
-        # UPDATE THE BELOW!!!!!!
-        if positive_accuracy > 0 and negative_accuracy > 0 and overall_score > 0:
+        if positive_accuracy > 0.5 and negative_accuracy > 0.5 and overall_score > 0.6 and precision > 0.5:
             logging.info(f"Registering model for symbol: {self.symbol}")
             model_uri = f"runs:/{run_id}/{self._classifier_artifact_path}"            
+            feature_importance_dict = self._get_feature_importance(
+                classifier=classifiers[classifier_name]
+            )
             tags = ModelTags(
                 positive_accuracy=positive_accuracy,
                 negative_accuracy=negative_accuracy,
@@ -144,12 +138,9 @@ class DeploymentPipeline:
                 classified_trend=self.trend_type,
                 target_pct=self._target_pct,
                 prediction_window_days=self._prediction_window_days,
-                feature_names=list(self.X_train.columns)
+                feature_names=list(self.X_train.columns),
+                feature_importance=feature_importance_dict
             )
-            feature_importance_dict = self._get_feature_importance(
-                classifier=classifiers[classifier_name]
-            )
-            print(feature_importance_dict)
             model_version = mlflow.register_model(model_uri=model_uri, name=self._registered_model_name, tags=tags.to_dict())
             return model_version
         else:
@@ -173,7 +164,7 @@ class DeploymentPipeline:
         return feature_importance_dict
 
     def run(self):
-        # Add another method to split the datasets instead of doing it in the train models
+        self.create_train_test_sets()
         classifiers = self.train_models()
         self.register_best_performing_model(classifiers)
 
@@ -187,7 +178,7 @@ class DeploymentPipeline:
         self._evaluation_results['Run_Id'].append(run_id)
 
 
-    def _create_train_test_sets(
+    def create_train_test_sets(
         self,
         training_data_pct: float = 0.95,
         target_col_name: str = 'target'
@@ -209,6 +200,11 @@ class DeploymentPipeline:
         X_test = test_dataset.drop(columns=[target_col_name], axis=1)
         y_test = test_dataset[target_col_name]
 
+        self.X_test = X_test
+        self.X_train = X_train
+        self.y_test = y_test
+        self.y_train = y_train
+
         return (X_train, y_train, X_test, y_test)        
 
 
@@ -220,14 +216,14 @@ class DeploymentPipeline:
 
     def _get_classifiers(self, class_weights: dict[str, float], scale_pos_weight: float = None) -> dict[str, object]:
         return {
-            # "RandomForest": RandomForestClassifier(class_weight=class_weights),
-            # "SupportVectorMachine": SVC(probability=True, class_weight=class_weights),
+            "RandomForest": RandomForestClassifier(class_weight=class_weights),
+            "SupportVectorMachine": SVC(probability=True, class_weight=class_weights),
             "XGBoost": xgb.XGBClassifier(scale_pos_weight=scale_pos_weight),
-            # "HistGradientBoostingClassifier": HistGradientBoostingClassifier(class_weight=class_weights),
-            # "AdaBoostClassifier": AdaBoostClassifier(algorithm='SAMME'),
-            # "RidgeClassifier": RidgeClassifier(class_weight=class_weights),
-            # "KNeighborsClassifier": KNeighborsClassifier(),
-            # "MLPClassifier": MLPClassifier(),
-            # "LightGBM": LGBMClassifier(class_weight=class_weights),
-            # "NeuralNet": NeuralNet(class_weight=class_weights)
+            "HistGradientBoostingClassifier": HistGradientBoostingClassifier(class_weight=class_weights),
+            "AdaBoostClassifier": AdaBoostClassifier(algorithm='SAMME'),
+            "RidgeClassifier": RidgeClassifier(class_weight=class_weights),
+            "KNeighborsClassifier": KNeighborsClassifier(),
+            "MLPClassifier": MLPClassifier(),
+            "LightGBM": LGBMClassifier(class_weight=class_weights),
+            "NeuralNet": NeuralNet(class_weight=class_weights)
         }

@@ -13,6 +13,7 @@ class ModelTags:
     target_pct: float
     prediction_window_days: int
     feature_names: list[str]
+    feature_importance: dict[str, float]
 
     def to_dict(self):
         return asdict(self)

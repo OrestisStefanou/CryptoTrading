@@ -5,11 +5,16 @@ class NeuralNet:
     """
     A wrapper class on top of tensorflow
     """
-    def __init__(self, class_weight: dict[str, float]) -> None:
+    def __init__(
+        self,
+        class_weight: dict[str, float] = None,
+        model: tf.keras.Sequential = None,
+        normalizer: tf.keras.layers.Normalization = None
+    ) -> None:
         self._class_weight = class_weight
         self.classes_ = [0, 1]
-        self._model = None
-        self._normalizer = None
+        self._model = model
+        self._normalizer = normalizer
 
     def fit(self, X_train: pd.DataFrame, y_train: pd.DataFrame) -> None:
         self._normalizer = tf.keras.layers.Normalization()

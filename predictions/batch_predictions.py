@@ -37,7 +37,7 @@ if __name__ == "__main__":
                     "symbol": deployed_model.symbol,
                     "prediction": deployed_model.predict(prediction_input),
                     "tags": deployed_model.tags.to_dict(),
-                    "shap_values": deployed_model._get_shap_values(prediction_input)
+                    # "shap_values": deployed_model._get_shap_values(prediction_input)
                 }
             )
         except Exception as e:
