@@ -2,10 +2,6 @@ import pandas as pd
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.metrics import precision_score
 from sklearn.linear_model import RidgeClassifier
-import shap
-from xgboost import XGBClassifier
-from lightgbm import LGBMClassifier
-from deep_learning.neural_net import NeuralNet
 
 
 def split_dataset(dataset: pd.DataFrame, training_pct: float = 0.95) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -70,21 +66,3 @@ def evaluate_classifier(
         "false_negatives": cm[1][0],
         "overall_score": get_overall_score(accuracy, precision, negative_accuracy, positive_accuracy)
     }
-
-
-def create_explainer(classifier: object, X: pd.DataFrame) -> shap.Explainer:    
-    if isinstance(classifier, NeuralNet):
-        return shap.KernelExplainer(
-            model=classifier.predict_flatten,
-            data=shap.utils.sample(X, 200),
-            feature_names=list(X.columns)
-        )
-    
-    if isinstance(classifier, XGBClassifier) or isinstance(classifier, LGBMClassifier):
-        return shap.explainers.TreeExplainer(classifier)
-
-    return shap.explainers.KernelExplainer(
-        model=classifier.predict, 
-        data=shap.utils.sample(X, 200),
-        feature_names=list(X.columns)
-    )

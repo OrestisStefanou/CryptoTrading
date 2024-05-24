@@ -21,6 +21,7 @@ from model_registry.model_tags import ModelTags
 from data.data_generator import DataGenerator
 import settings
 from deep_learning.neural_net import NeuralNet
+from explainer.model_explainer import ModelExplainer
 
 logging.basicConfig(level=logging.INFO)
 
@@ -154,14 +155,8 @@ class DeploymentPipeline:
         """
         Returns the a dict with the mean shap value of each feature
         """
-        feature_importance_dict = dict()
-        explainer = utils.create_explainer(classifier=classifier, X=self.X_train)
-        shap_values = explainer.shap_values(self.X_test)
-        mean_shap_values = np.mean(shap_values, axis=0)
-        for index, feature_name in enumerate(list(self.X_test.columns)):
-            feature_importance_dict[feature_name] = mean_shap_values[index]
-
-        return feature_importance_dict
+        explainer = ModelExplainer(model=classifier, sample_data=self.X_train)
+        return explainer.explain(self.X_test)
 
     def run(self):
         self.create_train_test_sets()

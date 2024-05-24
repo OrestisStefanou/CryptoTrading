@@ -5,9 +5,12 @@ import settings
 
 
 class DataGenerator:
-    def __init__(self, symbol: str):
-        # Add logic here to check if we already have the latest data
+    def __init__(self, symbol: str, fetch_data: bool = True) -> None:
         self.symbol = symbol
+        if fetch_data:
+            self.data = self._fetch_data()
+        else:
+            self.data = None
 
     def _get_techninal_indicator_daily_time_series(
         self,
@@ -91,7 +94,6 @@ class DataGenerator:
 
         return pd.DataFrame(time_series)
 
-
     def _get_crypto_daily_time_series(self, market: str = 'USD') -> pd.DataFrame:
         json_response = httpx.get(f'https://www.alphavantage.co/query?function=DIGITAL_CURRENCY_DAILY&symbol={self.symbol}&market={market}&apikey=KNPL6J9N740SLRRG').json()
         time_series = []
@@ -110,7 +112,6 @@ class DataGenerator:
 
         return pd.DataFrame(time_series)
 
-
     def _transform_data(self, data: pd.DataFrame) -> pd.DataFrame:
         data['OBV_pct_change'] = data['OBV'].pct_change() * 100
         data['AD_pct_change'] = data['Chaikin A/D'].pct_change() * 100
@@ -124,7 +125,6 @@ class DataGenerator:
         columns_to_convert = data.columns[data.columns != 'target']
         data[columns_to_convert] = data[columns_to_convert].astype(float)
         return data
-
 
     def _fetch_data(self) -> pd.DataFrame:
         time_series_df = self._get_techninal_indicator_daily_time_series(
@@ -147,7 +147,6 @@ class DataGenerator:
         merged_df.reset_index(inplace=True, drop=True)
         return merged_df
 
-
     def get_dataset(
         self,
         look_ahead_days: int = settings.prediction_window_days,
@@ -160,7 +159,11 @@ class DataGenerator:
         - downtrend: If True the target variable will contain 1 if the price will go down,
         If False the target variable will contain 1 if the price will go up
         """
-        data = self._fetch_data()
+        if self.data is None:
+            data = self._fetch_data()
+        else:
+            data = self.data.copy()
+
         # Creata a new column with the target variable
         data['future_SMA'] = data['10_day_SMA'].shift(-look_ahead_days)
         data.dropna(inplace=True)
@@ -176,8 +179,11 @@ class DataGenerator:
         
         return data
 
+    def get_prediction_input(self, number_of_instances: int = 1) -> pd.DataFrame:
+        if self.data is None:
+            data = self._fetch_data()
+        else:
+            data = self.data.copy()
 
-    def get_prediction_input(self) -> pd.DataFrame:
-        data = self._fetch_data()
         data = self._transform_data(data)
-        return data.iloc[-1:]
+        return data.tail(number_of_instances)
