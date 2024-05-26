@@ -3,6 +3,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.metrics import precision_score
 from sklearn.linear_model import RidgeClassifier
 
+
 def split_dataset(dataset: pd.DataFrame, training_pct: float = 0.95) -> tuple[pd.DataFrame, pd.DataFrame]:
     n = len(dataset)
     train_dataset = dataset[0:int(n*training_pct)]
@@ -12,7 +13,7 @@ def split_dataset(dataset: pd.DataFrame, training_pct: float = 0.95) -> tuple[pd
 
 
 def get_overall_score(accuracy: float, precision: float, negative_accuracy: float, positive_accuracy: float) -> float:
-    return (0.3 * accuracy) + (0.3 * precision) + (0.1 * negative_accuracy) + (0.3 * positive_accuracy)
+    return (0.1 * accuracy) + (0.4 * precision) + (0.2 * negative_accuracy) + (0.3 * positive_accuracy)
 
 
 def evaluate_classifier(

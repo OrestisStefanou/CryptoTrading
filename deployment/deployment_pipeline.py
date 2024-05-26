@@ -1,6 +1,7 @@
 import logging
 import datetime as dt
 from enum import Enum
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -16,9 +17,11 @@ from lightgbm import LGBMClassifier
 import mlflow
 
 import deployment.utils as utils
+from model_registry.model_tags import ModelTags
 from data.data_generator import DataGenerator
 import settings
 from deep_learning.neural_net import NeuralNet
+from explainer.model_explainer import ModelExplainer
 
 logging.basicConfig(level=logging.INFO)
 
@@ -43,46 +46,68 @@ class DeploymentPipeline:
             'Overall_Score': [],
             'Run_Id': []
         }
-        self._artifact_path: str = f'{symbol}_{trend_type.value}_classifier'
-        self._registered_model_name: str = f"{symbol}_{trend_type.value}_model"
+        self._classifier_artifact_path = f'{symbol}_{trend_type.value}_classifier'
+        self._registered_model_name = f"{symbol}_{trend_type.value}_model"
         self._prediction_window_days = settings.prediction_window_days
         self._target_pct = settings.target_uptrend_pct if trend_type == TrendType.UPTREND else settings.target_downtrend_pct
+        self.X_train = None
+        self.X_test = None
+        self.y_train = None
+        self.y_test = None
 
-    def train_models(self, training_data_pct: float = 0.95) -> None:
-        X_train, y_train, X_test, y_test = self._create_train_test_sets(
-            training_data_pct=training_data_pct
-        )
-        class_weights = self._calculate_class_weights(y_train)
-        scale_pos_weight=y_train.value_counts()[0] / y_train.value_counts()[1]
-        logging.info(f"Class weights: {class_weights}")
+    def train_models(self) -> dict[str, object]:
+        """
+        This method trains the classifiers and stores the evaluation metrics in
+        self._evaluation_results attribute.
+        Returns:
+        A dict with the name of the classifier and the trained model.
+        Example:
+        {
+            "RandomForest": sklearn.ensemble.RandomForestClassifier,
+            "XGBoost": xgb.XGBClassifier,
+            "LightGBM": lightgbm.LGBMClassifier,
+            "NeuralNet": deep_learning.neural_net.NeuralNet
+        }
+        """    
+        class_weights = self._calculate_class_weights(self.y_train)
+        scale_pos_weight=self.y_train.value_counts()[0] / self.y_train.value_counts()[1]
 
         classifiers = self._get_classifiers(class_weights=class_weights, scale_pos_weight=scale_pos_weight)
         for clf_name, clf in classifiers.items():
             with mlflow.start_run(run_name=f"{self.symbol}_{clf_name}") as run:
-                metrics = utils.evaluate_classifier(clf, X_train, y_train, X_test, y_test)
+                metrics = utils.evaluate_classifier(clf, self.X_train, self.y_train, self.X_test, self.y_test)
                 if isinstance(clf, xgb.XGBClassifier):
                     mlflow.log_params({"scale_pos_weight": scale_pos_weight})
                 else:
                     mlflow.log_params({"class_weights": class_weights})
 
                 mlflow.log_metrics(metrics)
-                signature = mlflow.models.infer_signature(X_test, clf.predict(X_test))
+                signature = mlflow.models.infer_signature(self.X_test, clf.predict(self.X_test))
                 
                 if isinstance(clf, NeuralNet):
                     mlflow.tensorflow.log_model(
                         model=clf._model,
-                        artifact_path=self._artifact_path
+                        artifact_path=self._classifier_artifact_path
                     )
                 else:
                     mlflow.sklearn.log_model(
                         sk_model=clf,
                         signature=signature,
-                        artifact_path=self._artifact_path
+                        artifact_path=self._classifier_artifact_path
                     )
             self._store_evaluation_results(classifier_name=clf_name, metrics=metrics, run_id=run.info.run_id)
+        
+        return classifiers
 
-
-    def register_best_performing_model(self) -> None:
+    def register_best_performing_model(self, classifiers: dict[str, object]) -> Optional[mlflow.entities.model_registry.ModelVersion]:
+        """
+        Stores the best performing model in the model registry
+        Returns the version of the deployed model or None 
+        in case that the best model failed to pass
+        the performance thresholds.
+        Params: 
+        - classifiers: A dict with the name of the classifier and the trained model
+        """
         results_df = pd.DataFrame(self._evaluation_results)
         results_df.sort_values(by=['Overall_Score'], ascending=False, inplace=True)
         results_df.reset_index(inplace=True)
@@ -96,31 +121,46 @@ class DeploymentPipeline:
         accuracy = results_df['Accuracy'][0]
         precision = results_df['Precision'][0]
 
-        if positive_accuracy > 0.5 and negative_accuracy > 0.5 and overall_score > 0.5:
+        if positive_accuracy > 0.5 and negative_accuracy > 0.5 and overall_score > 0.6 and precision > 0.5:
             logging.info(f"Registering model for symbol: {self.symbol}")
-            model_uri = f"runs:/{run_id}/{self._artifact_path}"
-            # Store the performance of the metrics in the tags
-            tags = {
-                'positive_accuracy': positive_accuracy,
-                'negative_accuracy': negative_accuracy,
-                'overall_score': overall_score,
-                'accuracy': accuracy,
-                'precision': precision,
-                'symbol': self.symbol,
-                'classifier': classifier_name,
-                'classified_trend': self.trend_type,
-                'target_pct': self._target_pct,
-                'prediction_window_days': self._prediction_window_days
-            }
-            mlflow.register_model(model_uri=model_uri, name=self._registered_model_name, tags=tags)
+            model_uri = f"runs:/{run_id}/{self._classifier_artifact_path}"            
+            feature_importance_dict = self._get_feature_importance(
+                classifier=classifiers[classifier_name]
+            )
+            tags = ModelTags(
+                positive_accuracy=positive_accuracy,
+                negative_accuracy=negative_accuracy,
+                overall_score=overall_score,
+                accuracy=accuracy,
+                precision=precision,
+                symbol=self.symbol,
+                classifier=classifier_name,
+                classified_trend=self.trend_type,
+                target_pct=self._target_pct,
+                prediction_window_days=self._prediction_window_days,
+                feature_names=list(self.X_train.columns),
+                feature_importance=feature_importance_dict
+            )
+            model_version = mlflow.register_model(model_uri=model_uri, name=self._registered_model_name, tags=tags.to_dict())
+            return model_version
         else:
             logging.info(f"Model for {self.symbol} failed thresholds")
+            return None
 
+    def _get_feature_importance(
+        self,
+        classifier: object,
+    ) -> dict[str, float]:
+        """
+        Returns the a dict with the mean shap value of each feature
+        """
+        explainer = ModelExplainer(model=classifier, sample_data=self.X_train)
+        return explainer.explain(self.X_test)
 
     def run(self):
-        self.train_models()
-        self.register_best_performing_model()
-
+        self.create_train_test_sets()
+        classifiers = self.train_models()
+        self.register_best_performing_model(classifiers)
 
     def _store_evaluation_results(self, classifier_name: str, metrics: dict[str, float], run_id: str) -> None:
         self._evaluation_results['Classifier'].append(classifier_name)
@@ -132,7 +172,7 @@ class DeploymentPipeline:
         self._evaluation_results['Run_Id'].append(run_id)
 
 
-    def _create_train_test_sets(
+    def create_train_test_sets(
         self,
         training_data_pct: float = 0.95,
         target_col_name: str = 'target'
@@ -154,7 +194,12 @@ class DeploymentPipeline:
         X_test = test_dataset.drop(columns=[target_col_name], axis=1)
         y_test = test_dataset[target_col_name]
 
-        return(X_train, y_train, X_test, y_test)        
+        self.X_test = X_test
+        self.X_train = X_train
+        self.y_test = y_test
+        self.y_train = y_train
+
+        return (X_train, y_train, X_test, y_test)        
 
 
     def _calculate_class_weights(self, y_train: pd.DataFrame) -> dict[str, float]:

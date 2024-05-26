@@ -36,7 +36,7 @@ if __name__ == "__main__":
                 {
                     "symbol": deployed_model.symbol,
                     "prediction": deployed_model.predict(prediction_input),
-                    "tags": deployed_model.tags
+                    "tags": deployed_model.tags.to_dict(),
                 }
             )
         except Exception as e:
