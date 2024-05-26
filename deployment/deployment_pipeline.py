@@ -47,7 +47,6 @@ class DeploymentPipeline:
             'Run_Id': []
         }
         self._classifier_artifact_path = f'{symbol}_{trend_type.value}_classifier'
-        self._explainer_artifact_path = f'{symbol}_{trend_type.value}_explainer'
         self._registered_model_name = f"{symbol}_{trend_type.value}_model"
         self._prediction_window_days = settings.prediction_window_days
         self._target_pct = settings.target_uptrend_pct if trend_type == TrendType.UPTREND else settings.target_downtrend_pct
