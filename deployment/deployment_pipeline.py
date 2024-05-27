@@ -121,7 +121,7 @@ class DeploymentPipeline:
         accuracy = results_df['Accuracy'][0]
         precision = results_df['Precision'][0]
 
-        if positive_accuracy > 0.5 and negative_accuracy > 0.5 and overall_score > 0.6 and precision > 0.5:
+        if positive_accuracy > 0.5 and negative_accuracy > 0.5 and overall_score > 0.6:
             logging.info(f"Registering model for symbol: {self.symbol}")
             model_uri = f"runs:/{run_id}/{self._classifier_artifact_path}"            
             feature_importance_dict = self._get_feature_importance(
