@@ -5,8 +5,8 @@ import mlflow
 
 from data.data_generator import DataGenerator
 from deployment.deployment_pipeline import TrendType
-from model_registry.deployed_model import DeployedModel
 from model_registry.model_tags import ModelTags
+from model_registry.model_registry import ModelRegistry
 import settings
 
 
@@ -32,14 +32,8 @@ class BatchPredictions:
     def run(self) -> list[dict[str, str]]:
         count = 0
         # Get all registered models
-        for model in self.mlflow_client.search_registered_models():
-            deployed_model = DeployedModel(model)
-            if self.symbols and deployed_model.symbol not in self.symbols:
-                continue
-
-            if deployed_model.classified_trend != self.trend_type.value:
-                continue
-
+        model_registry = ModelRegistry()
+        for deployed_model in model_registry.get_deployed_models(self.trend_type, self.symbols):
             prediction_input = DataGenerator(deployed_model.symbol).get_prediction_input()
             count += 1
 

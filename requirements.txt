@@ -6,3 +6,4 @@ lightgbm==4.3.0
 tensorflow==2.16.1
 duckdb==0.10.2
 shap==0.45.1
+fastapi==0.111.0
