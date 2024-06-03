@@ -29,7 +29,7 @@ class BatchPredictions:
         self.symbols = symbols
         mlflow.set_tracking_uri(settings.tracking_uri)
 
-    def run(self) -> list[dict[str, str]]:
+    def run(self, store_in_db: bool = True) -> list[Prediction]:
         count = 0
         # Get all registered models
         model_registry = ModelRegistry()
@@ -40,7 +40,7 @@ class BatchPredictions:
             self.predictions.append(
                 Prediction(
                     symbol=deployed_model.symbol,
-                    prediction=deployed_model.predict(prediction_input),
+                    prediction=deployed_model.predict(prediction_input, store_in_db),
                     tags=deployed_model.tags,
                 )
             )

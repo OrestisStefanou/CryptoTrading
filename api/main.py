@@ -37,7 +37,7 @@ async def get_prediction(symbol: str, trend_type: TrendType) -> schema.Predictio
     batch_predictions = BatchPredictions(
         trend_type=trend_type,
         symbols=[symbol, ]
-    ).run()
+    ).run(store_in_db=False)
 
     if len(batch_predictions) == 0:
         raise HTTPException(status_code=404, detail=f"Model for symbol {symbol} and trend type {trend_type} not found.")
