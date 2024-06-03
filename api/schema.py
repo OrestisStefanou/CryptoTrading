@@ -18,3 +18,9 @@ class DeployedModel(BaseModel):
     performance_metrics: PerformanceMetrics
     target_pct: float
     prediction_window_days: int
+
+
+class Prediction(BaseModel):
+    prediction_probabilities: float
+    symbol: str
+    trend_type: TrendType

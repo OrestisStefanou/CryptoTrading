@@ -1,10 +1,11 @@
 import ast
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
 from model_registry.model_registry import ModelRegistry
 from deployment.deployment_pipeline import TrendType
 from api import schema
+from predictions.batch_predict import BatchPredictions
 
 app = FastAPI()
 
@@ -29,3 +30,20 @@ async def get_models() -> list[schema.DeployedModel]:
         )
         for model in deployed_models
     ]
+
+
+@app.get("/prediction", status_code=200)
+async def get_prediction(symbol: str, trend_type: TrendType) -> schema.Prediction:
+    batch_predictions = BatchPredictions(
+        trend_type=trend_type,
+        symbols=[symbol, ]
+    ).run()
+
+    if len(batch_predictions) == 0:
+        raise HTTPException(status_code=404, detail=f"Model for symbol {symbol} and trend type {trend_type} not found.")
+    
+    return schema.Prediction(
+        prediction_probabilities=batch_predictions[0].prediction,
+        symbol=batch_predictions[0].symbol,
+        trend_type=batch_predictions[0].tags.classified_trend
+    )
